@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Remote Game Control</title>
+</head>
+<body>
+  <h1>Remote Game Control</h1>
+  <div id="status">Disconnected</div>
+  <div id="log"></div>
+
+  <script>
+    const WS_URL = 'wss://pgn5hjk0-4026.inc1.devtunnels.ms'; // Replace with your actual ngrok URL
+    let ws;
+
+    function log(message) {
+      const logElement = document.getElementById('log');
+      logElement.innerHTML += message + '<br>';
+      console.log(message);
+    }
+
+    function updateStatus(status) {
+      document.getElementById('status').textContent = status;
+    }
+
+    function connectWebSocket() {
+      ws = new WebSocket(WS_URL);
+
+      ws.onopen = function () {
+        log('WebSocket connection opened');
+        updateStatus('Connected');
+        setupEventListeners();
+      };
+
+      ws.onmessage = function (event) {
+        const keyEvent = JSON.parse(event.data);
+        log('Received Message: ' + JSON.stringify(keyEvent));
+        const newEvent = new KeyboardEvent(keyEvent.type, { key: keyEvent.key });
+        document.dispatchEvent(newEvent);
+      };
+
+      ws.onerror = function (error) {
+        log('WebSocket Error: ' + JSON.stringify(error));
+      };
+
+      ws.onclose = function () {
+        log('WebSocket connection closed. Attempting to reconnect...');
+        updateStatus('Disconnected. Reconnecting...');
+        setTimeout(connectWebSocket, 3000);  // Try to reconnect after 3 seconds
+      };
+    }
+
+    function setupEventListeners() {
+      document.addEventListener('keydown', handleKeyEvent);
+      document.addEventListener('keyup', handleKeyEvent);
+    }
+
+    function handleKeyEvent(event) {
+      const keyEvent = { type: event.type, key: event.key };
+      log(event.type + ': ' + JSON.stringify(keyEvent));
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(keyEvent));
+      } else {
+        log('WebSocket is not open. Message not sent.');
+      }
+    }
+
+    // Initial connection
+    connectWebSocket();
+  </script>
+</body>
+</html>
